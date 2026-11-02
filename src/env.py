@@ -44,13 +44,14 @@ from .config import *
 from .scenario import Scenario
 
 class IntersectionEnv:
-    """제어기가 누구인지 모른다. pygame을 참조하지 않는다."""
+    """Controller-independent simulation core with no pygame dependency."""
 
     def __init__(self, cfg: Config):
+        """Store settings; initialize episode state in reset()."""
         self.cfg = cfg
 
     def reset(self, scenario: Scenario) -> dict:
-        """상태 초기화. 방향별 대기열은 차량 도착 시각을 담는 deque."""
+        """Reset episode state and create FIFO deques containing vehicle arrival times."""
         self.scenario = scenario
         self.t = 0
         self.queues = [deque() for _ in range(4)]
@@ -68,9 +69,13 @@ class IntersectionEnv:
         return self._observe()
 
     def step(self, action):
-        """decision_interval 초 진행. -> obs, reward, done, info"""
-        # 1. action 적용
-        # 2. _tick()을 decision_interval 번
+        """Advance up to decision_interval seconds and return observation, reward, done, info.
+
+        Apply the requested action once, then stop early if the episode finishes.
+        The reward is the negative waiting increment divided by reward_scale.
+        """
+        # 1. Apply the requested action.
+        # 2. Run up to decision_interval one-second ticks.
         # 3. reward = -wait_increment / reward_scale
         self.throughput = [0,0,0,0]
         self.wait_increment = 0
@@ -92,10 +97,11 @@ class IntersectionEnv:
 
 
     def _tick(self) -> None:
-        # 결정 사이에도 최대 녹색 시간을 지키도록 검사한다.
+        """Advance one second: add arrivals, discharge vehicles, and accumulate waiting."""
+        # Enforce maximum green even between controller decisions.
         self._apply_action(ACTION_HOLD)
 
-        # 1. 현재 초의 차량 도착
+        # 1. Add the arrivals scheduled for the current second.
         if self.t < self.cfg.inflow_duration:
             arrivals_now = self.scenario.arrivals[self.t]
 
@@ -103,11 +109,11 @@ class IntersectionEnv:
                 self.queues[direction].extend([self.t] * count)
                 self.total_arrived += count
 
-        # 도착 직후의 순간 최대 큐 길이를 기록한다.
+        # Record the peak queue length immediately after arrivals.
         for direction in range(4):
             self.max_queue[direction] = max(self.max_queue[direction], len(self.queues[direction]))
 
-        # 2. 차량 통과
+        # 2. Discharge vehicles.
         if self.clearing > 0:
             self.clearing -= 1
             self.service_credit = [0.0, 0.0, 0.0, 0.0]
@@ -147,16 +153,17 @@ class IntersectionEnv:
 
             self.phase_time += 1
 
-        # 3. 남은 차량들이 이번 1초 동안 기다린 시간을 누적한다.
+        # 3. Add one second of waiting for every remaining vehicle.
         waiting_now = sum(len(queue) for queue in self.queues)
 
         self.wait_increment += waiting_now
         self.total_waiting += waiting_now
 
         self.t += 1
-        
+
 
     def _apply_action(self, action: int) -> None:
+        """Apply a permitted switch or force one at maximum green; start clearance."""
         if self.clearing > 0:
             return
 
@@ -172,6 +179,7 @@ class IntersectionEnv:
             self.service_credit = [0.0, 0.0, 0.0, 0.0]
 
     def action_mask(self):
+        """Return [HOLD allowed, SWITCH allowed] under the signal timing constraints."""
         mask = [True, True]
 
         if self.phase_time < self.cfg.min_green:
@@ -186,6 +194,7 @@ class IntersectionEnv:
         return mask
 
     def _is_done(self) -> bool:
+        """Check whether traffic has drained after inflow ends or the drain cap is reached."""
         inflow_finished = self.t >= self.cfg.inflow_duration
 
         queues_empty = all(len(queue) == 0 for queue in self.queues)
@@ -195,6 +204,7 @@ class IntersectionEnv:
         return (inflow_finished and queues_empty) or drain_limit_reached
 
     def _observe(self) -> dict:
+        """Build the restricted controller observation without true queues or alpha."""
         k = self.cfg.max_observable()
 
         return {
@@ -206,6 +216,7 @@ class IntersectionEnv:
         }
 
     def _info(self) -> dict:
+        """Return evaluator-only statistics; alpha is evaluated at the current time boundary."""
         return {
             "queue_real": [len(queue) for queue in self.queues],
             "alpha": self.scenario.alpha_at(self.t),
@@ -218,6 +229,11 @@ class IntersectionEnv:
         }
 
     def metrics(self) -> dict:
+        """Summarize completed waits, queue peaks, throughput, and unfinished traffic.
+
+        Call after the episode ends. Completed-wait statistics exclude queued vehicles
+        and are None when no vehicle has departed. Report unfinished traffic separately.
+        """
         remaining = sum(len(queue) for queue in self.queues)
 
         unfinished_waits = [
