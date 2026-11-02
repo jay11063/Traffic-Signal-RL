@@ -9,23 +9,23 @@ ACTION_HOLD, ACTION_SWITCH = 0,1
 
 @dataclass(frozen=True)
 class Config:
-    decision_interval = 5
-    min_green = 10
-    max_green = 60
-    clearance_time = 3
-    inflow_duration = 1800
-    drain_cap = 900
+    decision_interval: int = 5
+    min_green: int = 10
+    max_green: int = 60
+    clearance_time : int= 3
+    inflow_duration: int = 1800
+    drain_cap: int = 900
 
-    lanes_per_approach = 2
-    saturation_flow_per_lane = 1.0
-    vehicle_occupancy_m = 7.0
-    detection_range_m = 50
+    lanes_per_approach: int = 2
+    saturation_flow_per_lane:float = 0.5
+    vehicle_occupancy_m:float = 7.0
+    detection_range_m: int = 50
 
-    history_length = 6
-    reward_scale = 200.0
+    history_length: int = 6
+    reward_scale:float = 200.0
 
     def max_observable(self):
-        return self.detection_range_m // self.vehicle_occupancy_m
+        return int(self.detection_range_m // self.vehicle_occupancy_m)
 
     def nominal_capacity(self):
         return self.lanes_per_approach * self.saturation_flow_per_lane

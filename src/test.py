@@ -1,7 +1,7 @@
-from config import Config, N, S
-from scenario import make_scenario, with_disruption
-from env import IntersectionEnv
-from controllers import FixedTime, RuleBased, run_episode
+from .config import Config, N, S
+from .scenario import make_scenario, with_disruption
+from .env import IntersectionEnv
+from .controllers import FixedTime, RuleBased, run_episode
 
 cfg = Config()
 
