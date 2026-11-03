@@ -11,7 +11,7 @@ class Controller:
 class FixedTime(Controller):
     name = "fixed_time"
 
-    def __init__(self, green_times=(30, 30)):
+    def __init__(self, green_times=(45, 10)):
         self.green_times = green_times
 
     def act(self, obs) -> int:

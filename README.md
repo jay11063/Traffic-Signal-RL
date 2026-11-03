@@ -18,7 +18,9 @@ Implemented:
 - Fixed-time and rule-based controllers.
 - Waiting-time, queue-length, throughput, and unfinished-vehicle metrics.
 
-Reinforcement learning controllers, observation-history features, baseline tuning,
+Normal-traffic fixed-time and rule-threshold tuning have been completed on
+validation seeds 100-109, along with normal/disruption saturation measurements.
+Reinforcement learning controllers, observation-history features,
 and graphical visualization are planned work. The current implementation is a
 numerical simulator.
 
@@ -59,7 +61,7 @@ disrupted = with_disruption(
 env = IntersectionEnv(cfg)
 
 for condition, scenario in (("normal", normal), ("disrupted", disrupted)):
-    for controller in (FixedTime((30, 30)), RuleBased(threshold=2)):
+    for controller in (FixedTime((45, 10)), RuleBased(threshold=5)):
         result = run_episode(env, controller, scenario)
         print(condition, controller.name)
         print(result["metrics"])
@@ -71,15 +73,97 @@ for condition, scenario in (("normal", normal), ("disrupted", disrupted)):
 - `result["logs"]`: one evaluator log per decision interval, including the
   requested action and reward.
 
-The fixed green durations and rule threshold above are example settings, not
-validation-tuned parameters. A single seed does not establish which controller
-performs better in general.
+Both baseline parameters above were selected on normal-traffic validation seeds
+100-109 and are frozen for the normal/disruption comparison. A single
+development seed does not establish which controller performs better in general.
 
-The existing `src/test.py` is an earlier demonstration script that compares both
-controllers on normal traffic only. Its top-level imports are not yet consistent
-with the package-relative imports in the simulator modules. Use the package API
-example above until those imports are updated. There is currently no
+The existing `src/test.py` compares both controllers on normal traffic only. Run
+it from the repository root with `python -m src.test`; its relative imports need
+package execution rather than `python src/test.py`. There is currently no
 `src/__main__.py` entry point or command-line JSON export.
+
+### Baseline selection
+
+The results and frozen settings below apply only to the reference demand profile
+(base 0.15, NS peak 0.65), representing a recurring weekday rush hour. This rate
+curve stays fixed across episodes; Poisson arrival realizations differ. Before
+Q-learning training, the proposal plans independent uniform sampling of disruption
+direction N/S/E/W, integer start time 450-900 s, integer duration 150-450 s, and
+remaining-capacity multiplier alpha 0.3-0.7. Automatic parameter sampling is not
+implemented yet. Both normal-tuned baselines stay fixed for normal/disrupted
+tests. Existing JSON disruption results use N, alpha 0.5, and [600, 900) s.
+Each condition will have at least 20 shared held-out scenarios. Normal scenarios
+differ only in arrivals; disrupted scenarios additionally vary disruption
+parameters. Paired conditions share arrivals. Results are limited to the known,
+recurring demand pattern; other demand profiles are not tested.
+
+The search used normal scenarios with `base=0.15`, `peak=0.65`, NS peak demand,
+and validation seeds 100-109. It evaluated all 28 combinations of NS targets
+30-60 s and EW targets 10-25 s, both in 5 s increments. The objective was the
+unweighted mean of the ten episode mean completed waits. Every candidate run
+finished with zero remaining vehicles, so completed-only censoring did not affect
+selection. The selected targets were **(45, 10) s**, with validation mean wait
+**13.75 s**. These are the best targets in this grid, not a global optimum.
+The (40, 10) alternative has mean wait 13.90 s and mean episode p95 41.24 s,
+versus 13.75 s and 47.17 s for (45, 10). We retain (45, 10) because mean wait is
+the selection objective; p95 is a secondary reported metric. This is not a tie,
+and no p95 tie-break was applied.
+
+Rule thresholds 1-5 used the same ten normal validation scenarios and objective:
+
+| Threshold | Mean episode wait (s) | Mean episode p95 wait (s) |
+| --- | ---: | ---: |
+| 1 | 16.20 | 40.30 |
+| 2 | 15.63 | 39.60 |
+| 3 | 13.85 | 34.36 |
+| 4 | 13.44 | 33.04 |
+| **5 (selected)** | **12.84** | **31.20** |
+
+All 50 runs drained completely. Exact objective ties would use the lower
+threshold; no tie occurred. Threshold 5 is best within the requested range,
+not a claimed optimum over all possible thresholds. Both baseline settings are
+frozen for normal/disruption comparisons; no incident-specific tuning is used.
+
+With 5 s decisions and 3 s clearance, the first NS green lasts 45 s; subsequent
+NS/EW greens last 47/12 s, giving a steady 65 s cycle. Targets are not exact
+executed green durations. Freeze this normal-tuned pair for the planned paired
+normal/disruption evaluation, without retuning for the disruption schedule.
+
+Seed 42 is a previously inspected development example, not a held-out test:
+
+| Controller | Mean wait (s) | p95 wait (s) | Maximum queues (N, S, E, W) |
+| --- | ---: | ---: | --- |
+| Untuned fixed (30, 30) | 145.45 | 368.3 | 182, 152, 14, 13 |
+| Tuned fixed (45, 10) | 14.54 | 60.0 | 17, 17, 24, 16 |
+| Rule, threshold 2 | 11.98 | 25.0 | 25, 19, 10, 8 |
+| Tuned rule, threshold 5 | 10.94 | 25.0 | 21, 19, 9, 10 |
+
+All four passed all 2,235 arrivals. The tuned rule reduces mean wait by about
+24.8% relative to the tuned fixed controller on this development example. Its
+N/S maximum queues are still larger. On the ten validation scenarios, tuned
+fixed-time averages 13.75 s and the tuned rule 12.84 s. Final conclusions require
+held-out multi-seed comparisons. The earlier threshold-2 result is retained for
+comparison. Full grid metrics, reward summaries, and saturation counts are
+recorded in `output/validation/baseline_validation.json`.
+
+### Observation saturation
+
+Using fixed targets (45, 10), K=7, and paired validation seeds 100-109:
+
+| Condition | N | S | E | W | All step-direction pairs |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Normal | 25.64% | 23.53% | 24.38% | 29.10% | 25.66% |
+| N half capacity, [600, 900) s | 56.30% | 23.53% | 24.38% | 29.10% | 33.33% |
+
+Saturation means the returned post-step observation equals K (true queue >= K,
+including equality). Counts are pooled across seeds, with 3,650 returned steps
+per condition: 3,650 samples per direction and 14,600 step-direction pairs.
+The denominator includes clearance, drain, and the terminal step; reset is
+excluded. A shortened final step still counts as one observation. This measures
+the whole episode, not just the incident window. All runs drained. Because the
+fixed schedule is unchanged, the other directions have identical observations
+in paired normal/disrupted runs. Saturation supports the partial-observation
+premise but does not establish that history improves control.
 
 ## Check simulation results
 
@@ -94,9 +178,14 @@ and compare results with calculations by hand. In particular, check that:
   clipped to the detector cap.
 - Repeating a scenario with the same controller produces the same results.
 
-These are checks to perform during development, not a claim that an automated
-test suite is currently implemented. Separately, controller performance will be
-evaluated across multiple seeds and traffic conditions using the metrics below.
+Development checks on November 2, 2026 passed vehicle conservation and equality
+between accumulated step waiting and completed plus unfinished vehicle waits,
+including nominal approach capacities 1.0, 0.5, and 0.25 vehicle/s with a temporary
+half-capacity disruption. Checks also passed for exact observation keys, clipping
+above K, repeated-run reproducibility, and a hand-calculated fractional-service
+example. One-second checks verified minimum/maximum green, no red departures,
+and no discharge during clearance. These were ad hoc checks, not a maintained
+automated test suite. Controller performance evaluation remains separate.
 
 ## Simulation model
 
@@ -140,7 +229,7 @@ Edit the defaults in `src/config.py` to change the environment settings.
 | `inflow_duration` | 1,800 s | Duration of new vehicle arrivals |
 | `drain_cap` | 900 s | Maximum additional time to clear remaining vehicles |
 | `lanes_per_approach` | 2 | Lanes represented by each approach queue |
-| `saturation_flow_per_lane` | 1.0 vehicle/s | Service capacity per lane during green |
+| `saturation_flow_per_lane` | 0.5 vehicle/s | Service capacity per lane during green |
 | `vehicle_occupancy_m` | 7 m | Effective length per stopped vehicle |
 | `detection_range_m` | 50 m | Nominal detector coverage |
 | `reward_scale` | 200 | Divisor used to scale the waiting penalty |
@@ -149,7 +238,7 @@ Edit the defaults in `src/config.py` to change the environment settings.
 The current derived values are:
 
 - `cfg.max_observable()`: floor(50 / 7) = **7 vehicles per approach**.
-- `cfg.nominal_capacity()`: 2 x 1.0 = **2 vehicles/s per green approach**.
+- `cfg.nominal_capacity()`: 2 x 0.5 = **1 vehicle/s per green approach**.
 
 These are methods and are called with parentheses. The detector cap is an
 aggregate observation abstraction; it does not model separate visibility for
@@ -168,7 +257,7 @@ additional `(direction, start, end, alpha)` event. Treat the shared arrival tabl
 as read-only.
 
 Actual green capacity is `nominal_capacity() * alpha`. With the current defaults,
-`alpha=0.5` gives 1 vehicle/s on the affected approach. Disruption intervals include
+`alpha=0.5` gives 0.5 vehicle/s on the affected approach. Disruption intervals include
 the start and exclude the end. Overlapping events on the same approach use the
 lowest active alpha. The controller is not told the disruption schedule or alpha.
 
@@ -201,6 +290,12 @@ reward = -wait_increment / cfg.reward_scale
 ```
 
 `wait_increment` is measured in vehicle-seconds over that step.
+Across normal validation seeds 100-109, pooled step increments had mean/p95
+86.57/174.55 for tuned fixed-time and 80.10/179.00 for the tuned rule (threshold 5).
+Dividing by 200 gives mean reward about -0.43 and -0.40, respectively, so the existing scale is
+retained provisionally. Disruption runs still need scale validation before
+learning. Both learning variants must use the same frozen scale. A common
+divisor changes reward magnitude, not the ratio of two policies' penalties.
 True queue lengths, disruption factors, and cumulative statistics are returned
 in evaluator-only `info`; `run_episode()` does not pass them to the controller.
 The alpha in `info` describes its reported time boundary, not an average over
@@ -248,7 +343,7 @@ waiting statistics. The four maximum queue lengths may occur at different times.
 | `src/scenario.py` | Pre-generated arrivals and capacity disruption scenarios |
 | `src/env.py` | Queue dynamics, signal constraints, observations, rewards, and metrics |
 | `src/controllers.py` | Controller interface, two baselines, and episode runner |
-| `src/test.py` | Earlier demonstration script; see the import note above |
+| `src/test.py` | Normal-traffic demonstration; run with `python -m src.test` |
 | `requirements.txt` | Pinned NumPy dependency |
 
 ## Scope and limitations
@@ -258,3 +353,10 @@ finite road storage, or camera image processing. Its parameters are experimental
 settings, not a calibrated real-world intersection. Learning and history-based
 control remain future work. Evaluation will use separate training, validation,
 and test scenarios with shared arrival records for fair comparisons.
+
+Queues have unlimited storage, so long queues do not cause upstream spillback
+or prevent new arrivals. Queue counts aggregate two lanes: 182 vehicles at 7 m
+per vehicle would occupy about 637 m if evenly divided across lanes, not 1.3 km
+of road. The simulator does not model lane allocation or physical queue length.
+The 0.5 vehicle/s/lane assumption corresponds to the 1,800 vehicles/hour/lane
+approximation in the [FHWA Traffic Signal Timing Manual, Chapter 3](https://ops.fhwa.dot.gov/publications/fhwahop08024/chapter3.htm).

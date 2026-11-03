@@ -6,7 +6,7 @@ from .controllers import FixedTime, RuleBased, run_episode
 cfg = Config()
 
 normal = make_scenario(
-    seed=42,
+    seed=100,
     cfg=cfg,
     peak_dirs=(N, S),
     base=0.15,
@@ -25,13 +25,13 @@ env = IntersectionEnv(cfg)
 
 fixed_result = run_episode(
     env,
-    FixedTime(green_times=(30, 30)),
+    FixedTime(green_times=(45, 10)),  # Normal-traffic validation seeds 100-109.
     normal
 )
 
 rule_result = run_episode(
     env,
-    RuleBased(threshold=2),
+    RuleBased(threshold=5),  # Best of thresholds 1-5 on validation seeds 100-109.
     normal
 )
 
