@@ -82,6 +82,21 @@ it from the repository root with `python -m src.test`; its relative imports need
 package execution rather than `python src/test.py`. There is currently no
 `src/__main__.py` entry point or command-line JSON export.
 
+### Scenario seeds
+
+| Split | Scenario seeds (inclusive) | Count | Purpose |
+| --- | --- | ---: | --- |
+| Training | 1000–2999 | 2,000 | Train the Q-learning agents |
+| Validation | 100–109 | 10 | Tune baselines and select model settings |
+| Test | 3000–3019 | 20 | Evaluate all controllers after settings are fixed |
+
+Each test seed produces a normal scenario and a paired disrupted scenario
+with the same vehicle arrivals. All controllers use the same 20 scenario
+pairs. Test scenarios are reserved for final evaluation.
+
+These seeds control scenario generation. Q-learning exploration uses separate
+random seeds.
+
 ### Baseline selection
 
 The results and frozen settings below apply only to the reference demand profile
