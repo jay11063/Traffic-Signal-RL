@@ -7,6 +7,10 @@ PHASE_NS, PHASE_EW = 0,1
 DIRS_IN_PHASE = {PHASE_NS: (N,S), PHASE_EW: (E,W)}
 ACTION_HOLD, ACTION_SWITCH = 0,1
 
+TRAIN_SCENARIO_SEEDS = range(1000, 3000)
+VALIDATION_SCENARIO_SEEDS = range(100, 110)
+TEST_SCENARIO_SEEDS = range(3000, 3020)
+
 @dataclass(frozen=True)
 class Config:
     decision_interval: int = 5

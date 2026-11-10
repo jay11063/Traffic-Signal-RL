@@ -89,8 +89,7 @@ The results and frozen settings below apply only to the reference demand profile
 curve stays fixed across episodes; Poisson arrival realizations differ. Before
 Q-learning training, the proposal plans independent uniform sampling of disruption
 direction N/S/E/W, integer start time 450-900 s, integer duration 150-450 s, and
-remaining-capacity multiplier alpha 0.3-0.7. Automatic parameter sampling is not
-implemented yet. Both normal-tuned baselines stay fixed for normal/disrupted
+remaining-capacity multiplier alpha 0.4-0.6. Both normal-tuned baselines stay fixed for normal/disrupted
 tests. Existing JSON disruption results use N, alpha 0.5, and [600, 900) s.
 Each condition will have at least 20 shared held-out scenarios. Normal scenarios
 differ only in arrivals; disrupted scenarios additionally vary disruption

@@ -1,6 +1,6 @@
 
 import numpy as np
-from .config import N,S
+from .config import N, S, E, W
 from dataclasses import dataclass
 
 @dataclass
@@ -51,9 +51,18 @@ def make_scenario(seed, cfg, base, peak, peak_dirs=(N,S)):
 
     return Scenario(seed=seed, arrivals=arrivals, disruptions=[])
 
-def with_disruption(scenario, direction, start, duration, alpha):
+def with_disruption(scenario:Scenario, direction:int, start:int, duration:int, alpha:float) -> Scenario:
     new_disruptions = scenario.disruptions.copy()
     new_disruptions.append((direction, start, start+duration, alpha))
 
     return Scenario(seed=scenario.seed, arrivals=scenario.arrivals, disruptions=new_disruptions)
 
+
+def sample_disruption(scenario: Scenario, rng: np.random.Generator) -> Scenario:
+    """return a scenario with one additional sampled disruption."""
+    direction = int(rng.choice((N,S,E,W)))
+    start = int(rng.integers(450,901))
+    duration = int(rng.integers(150,451))
+    alpha = float(rng.uniform(0.4, 0.6))
+
+    return with_disruption(scenario, direction, start, duration, alpha)
