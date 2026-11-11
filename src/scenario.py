@@ -10,6 +10,7 @@ class Scenario:
     disruptions: list # (direction, start, end, alpha)
 
     def  alpha_at(self, t):
+        """Return alpha in all directions at time t"""
         alpha = [1.0 for _ in range(4)]
 
         for direction, start, end, factor in self.disruptions:
@@ -20,15 +21,23 @@ class Scenario:
 
 
 def rush_profile(t, cfg, peak_dirs, base, peak):
+    """Return average number of vehicle arrived per second in all directions"""
+
+    # out of range: to prevent new cars after inflow phase has ended
     if t<0 or t>=cfg.inflow_duration:
         return [0.0 for _ in range(4)]
 
-    progress = t / cfg.inflow_duration
+    progress = t / cfg.inflow_duration # progress ∈ [0,1]
 
+    # traffic gradually increasing
     if progress < (1/3): 
         level = progress * 3
+
+    # the busiest time
     elif progress < (2/3):
         level = 1.0
+
+    # the end of rush hour
     else:
         level = (1-progress)*3
 

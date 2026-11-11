@@ -90,6 +90,11 @@ package execution rather than `python src/test.py`. There is currently no
 | Validation | 100–109 | 10 | Tune baselines and select model settings |
 | Test | 3000–3019 | 20 | Evaluate all controllers after settings are fixed |
 
+Vehicle arrivals are generated with `np.random.default_rng(seed)`.
+Disruption parameters are sampled with `np.random.default_rng([seed,1])`,
+where `1` is fixed tag for the disruption generator. The two generators have seperate states, so sampling a disruption does not advance the arrival generator. Each normal/disrupted pair shares the same arrival list.
+Treat this list as read-only.
+
 Each test seed produces a normal scenario and a paired disrupted scenario
 with the same vehicle arrivals. All controllers use the same 20 scenario
 pairs. Test scenarios are reserved for final evaluation.
