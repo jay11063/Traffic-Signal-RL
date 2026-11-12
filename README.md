@@ -87,7 +87,7 @@ package execution rather than `python src/test.py`. There is currently no
 | Split | Scenario seeds (inclusive) | Count | Purpose |
 | --- | --- | ---: | --- |
 | Training | 1000–2999 | 2,000 | Train the Q-learning agents |
-| Validation | 100–109 | 10 | Tune baselines and select model settings |
+| Validation | 100–109 | 10 | Tune baselines on normal scenarios and validate settings on normal/disrupted pairs |
 | Test | 3000–3019 | 20 | Evaluate all controllers after settings are fixed |
 
 Vehicle arrivals are generated with `np.random.default_rng(seed)`.
@@ -308,13 +308,21 @@ Reward is:
 reward = -wait_increment / cfg.reward_scale
 ```
 
-`wait_increment` is measured in vehicle-seconds over that step.
-Across normal validation seeds 100-109, pooled step increments had mean/p95
-86.57/174.55 for tuned fixed-time and 80.10/179.00 for the tuned rule (threshold 5).
-Dividing by 200 gives mean reward about -0.43 and -0.40, respectively, so the existing scale is
-retained provisionally. Disruption runs still need scale validation before
-learning. Both learning variants must use the same frozen scale. A common
-divisor changes reward magnitude, not the ratio of two policies' penalties.
+`wait_increment` is measured in vehicle-seconds over that step. Run `python -m src.DeltaW` to reproduce the pooled step statistics from
+paired normal and disrupted validation scenarios using seeds 100–109.
+Waiting increments are measured in vehicle-seconds.
+
+| Controller | Normal mean | Normal p95 | Disrupted mean | Disrupted p95 |
+| --- | ---: | ---: | ---: | ---: |
+| FixedTime (45, 10) | 86.57 | 174.55 | 205.38 | 656.70 |
+| RuleBased (threshold 5) | 80.10 | 179.00 | 194.64 | 662.45 |
+
+Both learning variants use `reward_scale = 200`. The mean reward
+magnitude is 0.40–0.43 in normal runs and 0.97–1.03 in disrupted runs.
+The disrupted p95 reward magnitude is 3.28–3.31. This divisor keeps the
+mean penalty near one under disruption while preserving larger penalties
+for steps with more accumulated waiting.
+
 True queue lengths, disruption factors, and cumulative statistics are returned
 in evaluator-only `info`; `run_episode()` does not pass them to the controller.
 The alpha in `info` describes its reported time boundary, not an average over

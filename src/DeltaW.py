@@ -1,7 +1,7 @@
 import numpy as np
 
-from src.config import Config
-from src.scenario import make_scenario
+from src.config import Config, VALIDATION_SCENARIO_SEEDS
+from src.scenario import make_scenario, sample_disruption
 from src.env import IntersectionEnv
 from src.controllers import FixedTime, RuleBased, run_episode
 
@@ -12,34 +12,33 @@ controllers = {
     "RuleBased (threshold=5)": RuleBased(threshold=5),
 }
 
-# Store each controller's waiting increments separately.
-delta_w = {name: [] for name in controllers}
+# Pool waiting increments separately for each condition and controller.
+conditions = ("normal", "disrupted")
+delta_w = {(condition, name): [] for condition in conditions for name in controllers}
 
-for seed in range(100, 110):
-    # Both controllers receive the same arrivals.
-    scenario = make_scenario(
+for seed in VALIDATION_SCENARIO_SEEDS:
+    normal = make_scenario(
         seed=seed,
         cfg=cfg,
         base=0.15,
         peak=0.65,
     )
 
-    for name, controller in controllers.items():
-        result = run_episode(
-            IntersectionEnv(cfg),
-            controller,
-            scenario,
-        )
+    disruption_rng = np.random.default_rng([seed, 1])
+    disrupted = sample_disruption(normal, disruption_rng)
 
-        for log in result["logs"]:
-            delta_w[name].append(log["wait_increment"])
+    for condition, scenario in zip(conditions, (normal, disrupted)):
+        for name, controller in controllers.items():
+            result = run_episode(IntersectionEnv(cfg), controller, scenario)
+            for log in result["logs"]:
+                delta_w[condition, name].append(log["wait_increment"])
 
 # Calculate statistics across all steps from all ten seeds.
-for name, values in delta_w.items():
+for (condition, name), values in delta_w.items():
     mean = np.mean(values)
     p95 = np.percentile(values, 95)
 
-    print(f"\n{name}")
+    print(f"\n{condition.capitalize()} | {name}")
     print(f"Number of steps: {len(values)}")
     print(f"Total waiting: {sum(values)}")
     print(f"Mean: {mean}")
