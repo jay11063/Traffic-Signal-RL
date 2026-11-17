@@ -328,6 +328,36 @@ in evaluator-only `info`; `run_episode()` does not pass them to the controller.
 The alpha in `info` describes its reported time boundary, not an average over
 the preceding step.
 
+### State discretization
+
+At the default detector cap of K = 7, each approach's observed queue uses
+three bins: 0–1, 2–4, and 5–7 vehicles. Departures during the previous
+decision interval are summed separately for NS and EW and binned as 0,
+1–4, or 5–10 vehicles per axis. Elapsed green uses bins of 0–9, 10–19,
+and 20–60 seconds. The state keeps the original phase value.
+
+Candidate boundaries were compared using the observations available to
+FixedTime (45, 10) and RuleBased (threshold 5) when choosing actions on
+paired normal and disrupted scenarios from validation seeds 100–109.
+The queue and departure boundaries keep samples in all three bins across
+the observed groups. A separate zero-departure bin captures intervals
+with no departures. The first green-time boundary matches the 10-second
+minimum green. FixedTime's EW observations do not reach the 20-second
+bin. The environment's action mask determines which actions are legal.
+
+<details>
+<summary>View bin balance across candidate boundaries</summary>
+
+![Heatmap comparing bin occupancy and normalized entropy across boundary candidates](validation/bin_balance_heatmap.png)
+
+Each cell shows the normalized entropy and the percentage of observations
+in each of the three bins. The four panels compare FixedTime and RuleBased
+on paired normal and disrupted scenarios from validation seeds 100–109.
+
+[View the bin counts used in the figure](validation/bin_counts.csv).
+
+</details>
+
 ### Implemented controllers
 
 **FixedTime** uses separate NS/EW target green durations. It requests a switch
