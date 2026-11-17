@@ -369,24 +369,24 @@ chooses a legal action with the highest Q-value and breaks ties uniformly.
 
 The agent updates the value of the action it took:
 
-$$
+```math
 Q(s_t,a_t) \leftarrow Q(s_t,a_t)
 + \alpha \left[y_t - Q(s_t,a_t)\right]
-$$
+```
 
 The target uses the next observation's action mask on nonterminal steps:
 
-$$
+```math
 y_t =
 \begin{cases}
 r_t, & \text{if the episode ends},\\[4pt]
 r_t + \gamma \displaystyle\max_{a' \in \mathcal{A}_{\mathrm{legal}}(o_{t+1})}
 Q(s_{t+1}, a'), & \text{otherwise}.
 \end{cases}
-$$
+```
 
 Here, $\alpha$ is the learning rate, $\gamma$ is the discount factor,
-and $\mathcal{A}_{\mathrm{legal}}(o_{t+1})$ is the set of actions allowed
+and $\mathcal{A}\_{\mathrm{legal}}(o\_{t+1})$ is the set of actions allowed
 by the next observation's `act_mask`. The reward $r_t$ is defined in the
 controller interface above.
 
