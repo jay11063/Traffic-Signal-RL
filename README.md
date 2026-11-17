@@ -336,17 +336,7 @@ decision interval are summed separately for NS and EW and binned as 0,
 1–4, or 5–10 vehicles per axis. Elapsed green uses bins of 0–9, 10–19,
 and 20–60 seconds. The state keeps the original phase value.
 
-Candidate boundaries were compared using the observations available to
-FixedTime (45, 10) and RuleBased (threshold 5) when choosing actions on
-paired normal and disrupted scenarios from validation seeds 100–109.
-The queue and departure boundaries keep samples in all three bins across
-the observed groups. A separate zero-departure bin captures intervals
-with no departures. The first green-time boundary matches the 10-second
-minimum green. FixedTime's EW observations do not reach the 20-second
-bin. The environment's action mask determines which actions are legal.
-
-<details>
-<summary>View bin balance across candidate boundaries</summary>
+Candidate boundaries were compared using the observations available to FixedTime (45, 10) and RuleBased (threshold 5) when choosing actions on paired normal and disrupted scenarios from validation seeds 100–109. For queue and departures, we chose the candidate whose smallest bin share across all controller, scenario and direction groups was largest: 13.6% for queue (vs. 10.4% and 6.7%) and 9.4% for departures (vs. 0.8% and 6.1%). Even so, 68–77% of EW departure observations fall in the zero bin under every candidate. A separate zero-departure bin captures intervals with no departures. The first green-time boundary matches the 10-second minimum green; the second, at 20 seconds, gave RuleBased the most even NS split. The 20–60 second bin is rarely reached on the EW axis: never under FixedTime and in 1–3% of RuleBased observations. These boundaries reflect the baseline controllers’ observations and may differ from the states the learning agent visits. The environment’s action mask determines which actions are legal.
 
 ![Heatmap comparing bin occupancy and normalized entropy across boundary candidates](validation/bin_balance_heatmap.png)
 
@@ -356,7 +346,6 @@ on paired normal and disrupted scenarios from validation seeds 100–109.
 
 [View the bin counts used in the figure](validation/bin_counts.csv).
 
-</details>
 
 ### Implemented controllers
 
@@ -369,6 +358,37 @@ the environment still enforces maximum green every second.
 when the opposing axis is larger by at least the threshold. If all four counts
 are clipped to K, both axis sums are 2K and the rule cannot distinguish the true
 queue imbalance.
+
+### Q-learning update
+
+Each state tuple maps to two Q-values in the order `HOLD`, `SWITCH`.
+Both values start at zero for unseen states. At each decision,
+epsilon-greedy selection uses the current observation's `act_mask`.
+Exploration samples uniformly from legal actions. Greedy selection
+chooses a legal action with the highest Q-value and breaks ties uniformly.
+
+The agent updates the value of the action it took:
+
+$$
+Q(s_t,a_t) \leftarrow Q(s_t,a_t)
++ \alpha \left[y_t - Q(s_t,a_t)\right]
+$$
+
+The target uses the next observation's action mask on nonterminal steps:
+
+$$
+y_t =
+\begin{cases}
+r_t, & \text{if the episode ends},\\[4pt]
+r_t + \gamma \displaystyle\max_{a' \in \mathcal{A}_{\mathrm{legal}}(o_{t+1})}
+Q(s_{t+1}, a'), & \text{otherwise}.
+\end{cases}
+$$
+
+Here, $\alpha$ is the learning rate, $\gamma$ is the discount factor,
+and $\mathcal{A}_{\mathrm{legal}}(o_{t+1})$ is the set of actions allowed
+by the next observation's `act_mask`. The reward $r_t$ is defined in the
+controller interface above.
 
 ## Evaluation metrics
 
