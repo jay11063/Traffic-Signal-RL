@@ -390,6 +390,18 @@ and $\mathcal{A}_{\mathrm{legal}}(o_{t+1})$ is the set of actions allowed
 by the next observation's `act_mask`. The reward $r_t$ is defined in the
 controller interface above.
 
+
+### Q-learning training
+
+Each training run uses 2,000 episodes with scenario seeds 1000–2999.
+Normal and disrupted episodes alternate, starting with a normal episode
+at seed 1000. This gives 1,000 episodes per condition. Disrupted episodes
+sample one disruption using `np.random.default_rng([seed, 1])`.
+
+The learning rate is 0.1 and the discount factor is 0.95. Epsilon decays
+linearly from 0.20 on the first episode to 0.02 on the last. Each run uses
+a separate seed for the agent's action selection.
+
 ## Evaluation metrics
 
 An episode ends when arrivals have finished and all queues are empty, or when

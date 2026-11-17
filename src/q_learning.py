@@ -18,7 +18,7 @@ def encode_state(obs):
     """
     queues = tuple(bin_index(count, (1,4)) for count in obs["queue_observation"])
 
-    departures = obs["trhoughput"]
+    departures = obs["throughput"]
     ns_departures = bin_index(departures[N] + departures[S], (0,4))
     ew_departures = bin_index(departures[E] + departures[W], (0,4))
 
@@ -47,7 +47,7 @@ class QLearning(Controller):
             return int(self.rng.choice(legal_actions))
 
         state = encode_state(obs)
-        q_value = self.q_table.get(key=state, default=(0.0,0.0))
+        q_value = self.q_table.get(state, (0.0,0.0))
 
         best_value = max(q_value[action] for action in legal_actions)
         best_action = [action for action in legal_actions 
@@ -57,12 +57,12 @@ class QLearning(Controller):
 
     def update(self, obs, action, reward, next_obs, done):
         state = encode_state(obs)
-        q_value = self.q_table.setdefault(key=state, default=[0.0, 0.0])
+        q_value = self.q_table.setdefault(state, [0.0, 0.0])
 
         target = reward
         if not done:
             next_state = encode_state(next_obs)
-            next_values = self.q_table.get(key=state, default=(0.0,0.0))
+            next_values = self.q_table.get(state, (0.0,0.0))
             best_next_value = max(
                 next_values[next_action] 
                 for next_action, allowed in enumerate(next_obs["act_mask"]) 
