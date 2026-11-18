@@ -47,14 +47,16 @@ def main(
     episode_limit=None,
     validation_every=100,
     curve_path="results/learning_curve_seed_0.csv",
+    agent_seed=0,
+    learning_rate=0.10,
 ):
     cfg = Config()
     env = IntersectionEnv(cfg)
     agent = QLearning(
-        learning_rate=0.1,
+        learning_rate=learning_rate,
         gamma=0.95,
         epsilon=EPSILON_START,
-        seed=0,
+        seed=agent_seed,
     )
 
     all_seeds = TRAIN_SCENARIO_SEEDS
@@ -101,8 +103,22 @@ def main(
     return agent
 
 
+def run_training_seeds(learning_rate=0.10, output_dir="results"):
+    output_dir = Path(output_dir)
+
+    for agent_seed in (0, 1, 2):
+        print(f"\nTraining agent seed {agent_seed}, learning rate {learning_rate}")
+
+        agent = main(
+            agent_seed=agent_seed,
+            learning_rate=learning_rate,
+            curve_path=output_dir / f"learning_curve_seed_{agent_seed}.csv",
+        )
+
+        table_path = output_dir / f"q_table_seed_{agent_seed}.json"
+        save_q_table(agent.q_table, table_path)
+        print(f"Saved {len(agent.q_table)} states to {table_path}")
+
+
 if __name__ == "__main__":
-    agent = main()
-    path = "results/q_table_seed_0.json"
-    save_q_table(agent.q_table, path)
-    print(f"Saved {len(agent.q_table)} states to {path}")
+    run_training_seeds()

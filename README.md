@@ -412,9 +412,17 @@ python -m src.train
 python -m src.test
 ```
 
-Training uses agent seed `0` and saves the Q-table to
-`results/q_table_seed_0.json`. The greedy demo loads this file, sets
-`epsilon = 0`, and evaluates the policy on normal validation scenario `100`.
+Training runs use agent seeds 0, 1, and 2. Each run trains for 2,000
+episodes and saves its Q-table and validation curve in `results/`.
+Greedy validation runs before training and every 100 episodes on the same
+normal and disrupted scenario pairs from seeds 100–109. Run
+`python -m src.plot_learning_curve` to compare the three runs in one figure.
+
+I compared learning rates 0.10 and 0.05 using validation only. With the
+same epsilon schedule (0.20 to 0.02), 0.05 reduced fluctuations and
+average wait across late checkpoints. I retained 0.10 because its final
+2,000-episode policies had lower mean waits across the three agent seeds
+in both normal and disrupted validation scenarios.
 
 The first full run visited 871 encoded states. The table below reports the
 average of the episode mean waits over validation scenario seeds 100-109.
