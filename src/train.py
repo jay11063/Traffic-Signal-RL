@@ -1,6 +1,10 @@
 import numpy as np
+import csv
+from pathlib import Path
+from statistics import mean
 
-from .config import Config, TRAIN_SCENARIO_SEEDS
+from .config import Config, TRAIN_SCENARIO_SEEDS, VALIDATION_SCENARIO_SEEDS
+from .controllers import run_episode
 from .env import IntersectionEnv
 from .q_learning import QLearning, save_q_table, train_episode
 from .scenario import make_scenario, sample_disruption
@@ -9,7 +13,41 @@ EPSILON_START = 0.20
 EPSILON_END = 0.02
 
 
-def main(episode_limit=None):
+def build_validation_scenarios(cfg):
+    scenarios = {"normal": [], "disrupted": []}
+
+    for seed in VALIDATION_SCENARIO_SEEDS:
+        normal = make_scenario(seed, cfg, base=0.15, peak=0.65)
+        disrupted = sample_disruption(
+            normal, np.random.default_rng([seed, 1])
+        )
+        scenarios["normal"].append(normal)
+        scenarios["disrupted"].append(disrupted)
+
+    return scenarios
+
+
+def evaluate_checkpoint(cfg, agent, scenarios, episode):
+    evaluator = QLearning(epsilon=0.0, seed=0)
+    evaluator.q_table = agent.q_table
+
+    rows = []
+    for condition, condition_scenarios in scenarios.items():
+        waits = []
+        for scenario in condition_scenarios:
+            result = run_episode(IntersectionEnv(cfg), evaluator, scenario)
+            waits.append(result["metrics"]["mean_wait_completed"])
+
+        rows.append((episode, condition, mean(waits)))
+
+    return rows
+
+
+def main(
+    episode_limit=None,
+    validation_every=100,
+    curve_path="results/learning_curve_seed_0.csv",
+):
     cfg = Config()
     env = IntersectionEnv(cfg)
     agent = QLearning(
@@ -21,6 +59,9 @@ def main(episode_limit=None):
 
     all_seeds = TRAIN_SCENARIO_SEEDS
     seeds = all_seeds if episode_limit is None else all_seeds[:episode_limit]
+
+    validation_scenarios = build_validation_scenarios(cfg)
+    curve_rows = evaluate_checkpoint(cfg, agent, validation_scenarios, episode=0)
 
     for index, seed in enumerate(seeds):
         # Episode index 0 starts at 0.20. Index 1999 ends at 0.02.
@@ -36,6 +77,9 @@ def main(episode_limit=None):
             condition = "disrupted"
 
         metrics = train_episode(env, agent, scenario)
+        episode = index + 1
+        if episode % validation_every == 0 or episode == len(seeds):
+            curve_rows.extend(evaluate_checkpoint(cfg, agent, validation_scenarios, episode))
 
         if episode_limit is not None or index == 0 or (index + 1) % 100 == 0:
             print(
@@ -45,6 +89,15 @@ def main(episode_limit=None):
                 f"mean_wait={metrics['mean_wait_completed']:.2f}"
             )
 
+    curve_path = Path(curve_path)
+    curve_path.parent.mkdir(parents=True, exist_ok=True)
+
+    with curve_path.open("w", newline="", encoding="utf-8") as file:
+        writer = csv.writer(file)
+        writer.writerow(["episode", "condition", "mean_wait_s"])
+        writer.writerows(curve_rows)
+
+    print(f"Saved validation curve to {curve_path}")
     return agent
 
 
