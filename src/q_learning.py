@@ -102,4 +102,3 @@ def load_q_table(path):
         rows = json.load(file)
 
     return {tuple(state): values for state, values in rows}
-

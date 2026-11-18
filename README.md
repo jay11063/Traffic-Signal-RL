@@ -423,7 +423,7 @@ Each normal scenario and its disrupted counterpart share the same arrivals.
 | Controller | Normal mean wait (s) | Disrupted mean wait (s) |
 | --- | ---: | ---: |
 | FixedTime (45, 10) | 13.75 | 32.76 |
-| RuleBased (threshold 5) | 12.84 | 31.05 |
+| RuleBased (threshold 5) | 12.84 | 31.06 |
 | Q-learning (agent seed 0, greedy) | 14.69 | 33.78 |
 
 The Q-learning policy had a higher mean wait than both baselines in this
@@ -459,15 +459,21 @@ waiting statistics. The four maximum queue lengths may occur at different times.
 | `src/scenario.py` | Pre-generated arrivals and capacity disruption scenarios |
 | `src/env.py` | Queue dynamics, signal constraints, observations, rewards, and metrics |
 | `src/controllers.py` | Controller interface, two baselines, and episode runner |
-| `src/test.py` | Normal-traffic demonstration; run with `python -m src.test` |
+| `src/q_learning.py` | State encoding, tabular Q-learning, and Q-table saving and loading |
+| `src/train.py` | Training loop for 2,000 episodes and Q-table export |
+| `src/test.py` | Greedy evaluation of the saved Q-table on validation scenario 100 |
 | `requirements.txt` | Pinned NumPy dependency |
 
 ## Scope and limitations
 
 The model does not simulate turns, pedestrians, travel time, lane changes,
-finite road storage, or camera image processing. Its parameters are experimental
-settings, not a calibrated real-world intersection. The current Q-learning controller uses the current observation. A history-augmented controller is planned. Evaluation will use separate training, validation,
-and test scenarios with shared arrival records for fair comparisons.
+finite road storage, or camera image processing. Results apply to the
+recurring weekday rush-hour demand profile used in the experiments.
+Generalization to other demand profiles remains untested.
+
+The current Q-learning controller uses the current observation. A
+history-augmented controller is planned. Training, validation, and test
+scenarios use separate seed ranges. Paired scenarios share arrival records.
 
 Queues have unlimited storage, so long queues do not cause upstream spillback
 or prevent new arrivals. Queue counts aggregate two lanes: 182 vehicles at 7 m
