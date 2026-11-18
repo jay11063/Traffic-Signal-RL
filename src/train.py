@@ -2,7 +2,7 @@ import numpy as np
 
 from .config import Config, TRAIN_SCENARIO_SEEDS
 from .env import IntersectionEnv
-from .q_learning import QLearning, train_episode
+from .q_learning import QLearning, save_q_table, train_episode
 from .scenario import make_scenario, sample_disruption
 
 EPSILON_START = 0.20
@@ -49,4 +49,7 @@ def main(episode_limit=None):
 
 
 if __name__ == "__main__":
-    main()
+    agent = main()
+    path = "results/q_table_seed_0.json"
+    save_q_table(agent.q_table, path)
+    print(f"Saved {len(agent.q_table)} states to {path}")

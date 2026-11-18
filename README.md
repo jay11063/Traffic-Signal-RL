@@ -17,12 +17,14 @@ Implemented:
 - Reproducible Poisson arrival scenarios and temporary capacity disruptions.
 - Fixed-time and rule-based controllers.
 - Waiting-time, queue-length, throughput, and unfinished-vehicle metrics.
+- Tabular Q-learning using the current observation, with JSON Q-table export
+  and greedy evaluation from a saved table.
 
 Normal-traffic fixed-time and rule-threshold tuning have been completed on
 validation seeds 100-109, along with normal/disruption saturation measurements.
-Reinforcement learning controllers, observation-history features,
-and graphical visualization are planned work. The current implementation is a
-numerical simulator.
+The first Q-learning run completed 2,000 episodes with agent seed 0.
+Planned work includes a history-augmented Q-learning controller and
+graphical visualization of the intersection.
 
 ## Setup
 
@@ -77,10 +79,9 @@ Both baseline parameters above were selected on normal-traffic validation seeds
 100-109 and are frozen for the normal/disruption comparison. A single
 development seed does not establish which controller performs better in general.
 
-The existing `src/test.py` compares both controllers on normal traffic only. Run
-it from the repository root with `python -m src.test`; its relative imports need
-package execution rather than `python src/test.py`. There is currently no
-`src/__main__.py` entry point or command-line JSON export.
+The example above compares the two baselines. After training, run
+`python -m src.test` from the project root to evaluate the saved Q-learning
+policy on normal validation scenario `100`.
 
 ### Scenario seeds
 
@@ -104,17 +105,12 @@ random seeds.
 
 ### Baseline selection
 
-The results and frozen settings below apply only to the reference demand profile
-(base 0.15, NS peak 0.65), representing a recurring weekday rush hour. This rate
-curve stays fixed across episodes; Poisson arrival realizations differ. Before
-Q-learning training, the proposal plans independent uniform sampling of disruption
-direction N/S/E/W, integer start time 450-900 s, integer duration 150-450 s, and
-remaining-capacity multiplier alpha 0.4-0.6. Both normal-tuned baselines stay fixed for normal/disrupted
-tests. Existing JSON disruption results use N, alpha 0.5, and [600, 900) s.
-Each condition will have at least 20 shared held-out scenarios. Normal scenarios
-differ only in arrivals; disrupted scenarios additionally vary disruption
-parameters. Paired conditions share arrivals. Results are limited to the known,
-recurring demand pattern; other demand profiles are not tested.
+The baselines were tuned on normal validation scenarios using the weekday
+rush-hour profile, with a base arrival rate of 0.15 vehicles/s per approach
+and an NS peak of 0.65 vehicles/s per approach. Both baselines use the same
+settings under normal and disrupted conditions. The earlier disruption
+measurements used a fixed event on approach N from 600 s to 900 s
+(end exclusive), with `alpha = 0.5`.
 
 The search used normal scenarios with `base=0.15`, `peak=0.65`, NS peak demand,
 and validation seeds 100-109. It evaluated all 28 combinations of NS targets
@@ -275,10 +271,17 @@ and decrease during the final third. Other directions remain at the base rate.
 additional `(direction, start, end, alpha)` event. Treat the shared arrival table
 as read-only.
 
-Actual green capacity is `nominal_capacity() * alpha`. With the current defaults,
-`alpha=0.5` gives 0.5 vehicle/s on the affected approach. Disruption intervals include
-the start and exclude the end. Overlapping events on the same approach use the
-lowest active alpha. The controller is not told the disruption schedule or alpha.
+`sample_disruption(scenario, rng)` returns a new scenario with one added
+disruption and shares the original arrival table. It samples each parameter
+uniformly: direction from N/S/E/W, start time from 450 to 900 seconds, duration
+from 150 to 450 seconds, and the remaining-capacity multiplier `alpha` from
+0.4 to 0.6. Both endpoints are included for the integer time ranges.
+
+During a disruption, the affected approach's green capacity is
+`nominal_capacity() * alpha`. With the default settings, `alpha = 0.5`
+reduces capacity to 0.5 vehicles/s. A disruption starts at `start` and ends
+just before `end`. Overlapping disruptions on the same approach use the
+lowest active `alpha`. Disruption parameters are hidden from the controller.
 
 ## Controller interface
 
@@ -402,6 +405,30 @@ The learning rate is 0.1 and the discount factor is 0.95. Epsilon decays
 linearly from 0.20 on the first episode to 0.02 on the last. Each run uses
 a separate seed for the agent's action selection.
 
+Run the following commands from the project root:
+
+```powershell
+python -m src.train
+python -m src.test
+```
+
+Training uses agent seed `0` and saves the Q-table to
+`results/q_table_seed_0.json`. The greedy demo loads this file, sets
+`epsilon = 0`, and evaluates the policy on normal validation scenario `100`.
+
+The first full run visited 871 encoded states. The table below reports the
+average of the episode mean waits over validation scenario seeds 100-109.
+Each normal scenario and its disrupted counterpart share the same arrivals.
+
+| Controller | Normal mean wait (s) | Disrupted mean wait (s) |
+| --- | ---: | ---: |
+| FixedTime (45, 10) | 13.75 | 32.76 |
+| RuleBased (threshold 5) | 12.84 | 31.05 |
+| Q-learning (agent seed 0, greedy) | 14.69 | 33.78 |
+
+The Q-learning policy had a higher mean wait than both baselines in this
+single run. The cause has not yet been established.
+
 ## Evaluation metrics
 
 An episode ends when arrivals have finished and all queues are empty, or when
@@ -439,8 +466,7 @@ waiting statistics. The four maximum queue lengths may occur at different times.
 
 The model does not simulate turns, pedestrians, travel time, lane changes,
 finite road storage, or camera image processing. Its parameters are experimental
-settings, not a calibrated real-world intersection. Learning and history-based
-control remain future work. Evaluation will use separate training, validation,
+settings, not a calibrated real-world intersection. The current Q-learning controller uses the current observation. A history-augmented controller is planned. Evaluation will use separate training, validation,
 and test scenarios with shared arrival records for fair comparisons.
 
 Queues have unlimited storage, so long queues do not cause upstream spillback

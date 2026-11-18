@@ -1,4 +1,6 @@
 import numpy as np
+import json
+from pathlib import Path
 
 from .config import N, S, E, W
 from .controllers import Controller
@@ -62,7 +64,7 @@ class QLearning(Controller):
         target = reward
         if not done:
             next_state = encode_state(next_obs)
-            next_values = self.q_table.get(state, (0.0,0.0))
+            next_values = self.q_table.get(next_state, (0.0,0.0))
             best_next_value = max(
                 next_values[next_action] 
                 for next_action, allowed in enumerate(next_obs["act_mask"]) 
@@ -84,3 +86,20 @@ def train_episode(env, agent, scenario):
         obs = next_obs
 
     return env.metrics()
+
+
+def save_q_table(q_table, path):
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+
+    rows = [[list(state), values] for state, values in q_table.items()]
+    with path.open("w", encoding="utf-8") as file:
+        json.dump(rows, file, allow_nan=False)
+
+
+def load_q_table(path):
+    with Path(path).open("r", encoding="utf-8") as file:
+        rows = json.load(file)
+
+    return {tuple(state): values for state, values in rows}
+
