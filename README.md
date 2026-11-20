@@ -350,6 +350,24 @@ on paired normal and disrupted scenarios from validation seeds 100–109.
 
 [View the bin counts used in the figure](validation/bin_counts.csv).
 
+#### Departure history
+
+The history agent tracks the six most recent decision intervals. For each
+axis it records the total departures in an interval only if that axis was
+green for all five seconds. A full green interval with zero departures is
+a valid observation. Red and partially green intervals occupy a slot in
+the window but provide no departure count for that axis. The window is
+cleared at the start of each episode.
+
+For each axis the agent subtracts the oldest valid count from the newest.
+A change of at least +2 vehicles is increasing. A change of −2 vehicles or
+less is decreasing. Smaller changes are maintaining. The trend is
+unavailable when the window contains fewer than two valid counts.
+The two-vehicle threshold corresponds to 0.4 vehicles/s over five seconds.
+
+The current-observation encoding has 4,374 possible state combinations.
+Adding one four-category trend per axis raises this upper bound to 69,984.
+The first current-observation training run visited 871 distinct states.
 
 ### Implemented controllers
 

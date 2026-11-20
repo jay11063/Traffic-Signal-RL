@@ -26,7 +26,12 @@ def encode_state(obs):
 
     green_time = bin_index(obs["phase_time"], (9,19))
 
-    return (*queues, ns_departures, ew_departures, green_time, obs["phase"])
+    state = (*queues, ns_departures, ew_departures, green_time, obs["phase"])
+
+    if "departure_trends" in obs:
+        return (*state, *obs["departure_trends"])
+
+    return state
 
 
 class QLearning(Controller):
