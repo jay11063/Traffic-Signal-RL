@@ -1,7 +1,4 @@
-from collections import deque
-
-from .config import DIRS_IN_PHASE, PHASE_NS, PHASE_EW
-from .env import IntersectionEnv
+from .config import DIRS_IN_PHASE
 
 
 DECREASING = 0
@@ -26,33 +23,17 @@ def departure_trend(history, axis):
     return MAINTAINING
 
 
-class HistoryIntersectionEnv(IntersectionEnv):
-    def __init__(self, cfg):
-        super().__init__(cfg)
-        self.history = deque(maxlen=cfg.history_length)
+def interval_departures(previous_obs, obs, decision_interval):
+    """Return (NS count, EW count) for one completed decision interval."""
+    phase = obs["phase"]
+    same_phase = phase == previous_obs["phase"]
+    elapsed_green = obs["phase_time"] - previous_obs["phase_time"]
 
-    def reset(self, scenario):
-        obs = super().reset(scenario)
-        self.history.clear()
-        self.previous_obs = obs
-        return {**obs, "departure_trends": (UNAVAILABLE, UNAVAILABLE)}
+    record = [None, None]
+    if same_phase and elapsed_green == decision_interval:
+        record[phase] = sum(
+            obs["throughput"][direction]
+            for direction in DIRS_IN_PHASE[phase]
+        )
 
-    def step(self, action):
-        obs, reward, done, info = super().step(action)
-        previous = self.previous_obs
-        phase = obs["phase"]
-
-        full_green = (phase == previous["phase"] and 
-                      obs["phase_time"] - previous["phase_time"] == self.cfg.decision_interval)
-
-        record = [None, None]  # NS, EW
-        if full_green:
-            record[phase] = sum(obs["throughput"][direction] 
-                                for direction in DIRS_IN_PHASE[phase])
-
-        self.history.append(tuple(record))
-        self.previous_obs = obs
-
-        trends = (departure_trend(self.history, PHASE_NS), 
-                  departure_trend(self.history, PHASE_EW))
-        return {**obs, "departure_trends": trends}, reward, done, info
+    return tuple(record)

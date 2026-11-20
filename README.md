@@ -249,7 +249,7 @@ Edit the defaults in `src/config.py` to change the environment settings.
 | `vehicle_occupancy_m` | 7 m | Effective length per stopped vehicle |
 | `detection_range_m` | 50 m | Nominal detector coverage |
 | `reward_scale` | 200 | Divisor used to scale the waiting penalty |
-| `history_length` | 6 | Reserved for a future history-based controller |
+| `history_length` | 6 | Number of recent decision intervals retained by the history controller |
 
 The current derived values are:
 

@@ -6,6 +6,8 @@ class Controller:
     def reset(self): pass
     def act(self, obs):
         raise NotImplementedError
+    def observe(self, obs):
+        return obs
 
 
 class FixedTime(Controller):
@@ -63,8 +65,8 @@ class RuleBased(Controller):
 
 
 def run_episode(env, controller, scenario) -> dict:
-    obs = env.reset(scenario)
     controller.reset()
+    obs = controller.observe(env.reset(scenario))
 
     logs = []
     done = False
@@ -72,7 +74,8 @@ def run_episode(env, controller, scenario) -> dict:
     while not done:
         action = controller.act(obs)
 
-        obs, reward, done, info = env.step(action)
+        raw_obs, reward, done, info = env.step(action)
+        obs = controller.observe(raw_obs)
 
         logs.append({
             **info,

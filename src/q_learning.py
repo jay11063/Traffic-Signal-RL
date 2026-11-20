@@ -2,8 +2,10 @@ import numpy as np
 import json
 from pathlib import Path
 
-from .config import N, S, E, W
+from .config import N, S, E, W, PHASE_NS, PHASE_EW
 from .controllers import Controller
+from collections import deque
+from .history import departure_trend, interval_departures
 
 def bin_index(value, edges):
     low, high = edges
@@ -79,14 +81,42 @@ class QLearning(Controller):
 
         q_value[action] += self.learning_rate * (target - q_value[action])
 
+
+class HistoryQLearning(QLearning):
+    def __init__(self, cfg, **kwargs):
+        super().__init__(**kwargs)
+        self.decision_interval = cfg.decision_interval
+        self.history = deque(maxlen=cfg.history_length)
+        self.previous_obs = None
+
+    def reset(self):
+        self.history.clear()
+        self.previous_obs = None
+
+    def observe(self, obs):
+        if self.previous_obs is not None:
+            record = interval_departures(
+                self.previous_obs, obs, self.decision_interval
+            )
+            self.history.append(record)
+
+        self.previous_obs = obs
+        trends = (
+            departure_trend(self.history, PHASE_NS),
+            departure_trend(self.history, PHASE_EW),
+        )
+        return {**obs, "departure_trends": trends}
+
+
 def train_episode(env, agent, scenario):
-    obs = env.reset(scenario)
     agent.reset()
+    obs = agent.observe(env.reset(scenario))
     done = False
 
     while not done:
         action = agent.act(obs)
-        next_obs, reward, done, _ = env.step(action)
+        raw_next_obs, reward, done, _ = env.step(action)
+        next_obs = agent.observe(raw_next_obs)
         agent.update(obs, action, reward, next_obs, done)
         obs = next_obs
 
