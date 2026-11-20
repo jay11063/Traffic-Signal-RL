@@ -22,14 +22,15 @@ Implemented:
 
 Normal-traffic fixed-time and rule-threshold tuning have been completed on
 validation seeds 100-109, along with normal/disruption saturation measurements.
-The first Q-learning run completed 2,000 episodes with agent seed 0.
+Three Q-learning runs completed 2,000 episodes each using agent seeds 0, 1,
+and 2. Each run has a saved Q-table and validation learning curve.
 Planned work includes a history-augmented Q-learning controller and
 graphical visualization of the intersection.
 
 ## Setup
 
-The project has been tested with Python 3.10.11 and NumPy 1.25.2.
-From the repository root, install the dependency:
+The project has been tested with Python 3.10.11, NumPy 1.25.2, and
+Matplotlib 3.7.2. From the repository root, install the dependencies:
 
 ```powershell
 python -m pip install -r requirements.txt
@@ -424,18 +425,23 @@ average wait across late checkpoints. I retained 0.10 because its final
 2,000-episode policies had lower mean waits across the three agent seeds
 in both normal and disrupted validation scenarios.
 
-The first full run visited 871 encoded states. The table below reports the
-average of the episode mean waits over validation scenario seeds 100-109.
-Each normal scenario and its disrupted counterpart share the same arrivals.
+The table below reports the final greedy policies after 2,000 training
+episodes. Each value is the average of episode mean waits over validation
+scenario seeds 100-109. Normal and disrupted scenario pairs share arrivals.
 
 | Controller | Normal mean wait (s) | Disrupted mean wait (s) |
 | --- | ---: | ---: |
 | FixedTime (45, 10) | 13.75 | 32.76 |
 | RuleBased (threshold 5) | 12.84 | 31.06 |
-| Q-learning (agent seed 0, greedy) | 14.69 | 33.78 |
+| Q-learning (agent seed 0) | 14.69 | 33.78 |
+| Q-learning (agent seed 1) | 13.94 | 32.84 |
+| Q-learning (agent seed 2) | 12.96 | 32.66 |
+| Q-learning (mean across three agent seeds) | 13.86 | 33.09 |
 
-The Q-learning policy had a higher mean wait than both baselines in this
-single run. The cause has not yet been established.
+The mean across the three Q-learning runs was slightly higher than both
+baselines under both conditions. Agent seed 2 achieved lower mean waits
+than FixedTime under both conditions. RuleBased achieved the lowest mean
+wait in both conditions.
 
 ## Evaluation metrics
 
@@ -461,16 +467,22 @@ waiting statistics. The four maximum queue lengths may occur at different times.
 
 ## Project files
 
-| File | Purpose |
+| File or directory | Purpose |
 | --- | --- |
-| `src/config.py` | Environment settings, direction/phase constants, and action constants |
-| `src/scenario.py` | Pre-generated arrivals and capacity disruption scenarios |
+| `src/config.py` | Environment settings, constants, and scenario seed ranges |
+| `src/scenario.py` | Arrival generation and fixed or sampled capacity disruptions |
 | `src/env.py` | Queue dynamics, signal constraints, observations, rewards, and metrics |
-| `src/controllers.py` | Controller interface, two baselines, and episode runner |
-| `src/q_learning.py` | State encoding, tabular Q-learning, and Q-table saving and loading |
-| `src/train.py` | Training loop for 2,000 episodes and Q-table export |
+| `src/controllers.py` | Baseline controllers and evaluation episode runner |
+| `src/q_learning.py` | State encoding, Q-learning updates, and Q-table saving and loading |
+| `src/train.py` | Training across agent seeds and periodic greedy validation |
 | `src/test.py` | Greedy evaluation of the saved Q-table on validation scenario 100 |
-| `requirements.txt` | Pinned NumPy dependency |
+| `src/plot_learning_curve.py` | Plot validation curves for the three agent seeds |
+| `src/check_bins.py` | Count observations in candidate state bins and export CSV |
+| `src/plot_bin_counts.py` | Plot bin occupancy and entropy across boundary candidates |
+| `src/check_disruption.py` | Check disruption ranges, reproducibility, and shared arrivals |
+| `src/DeltaW.py` | Compare waiting increments on normal and disrupted validation scenarios |
+| `results/` | Saved Q-tables, validation learning curves, and generated plots |
+| `requirements.txt` | Pinned NumPy and Matplotlib dependencies |
 
 ## Scope and limitations
 
