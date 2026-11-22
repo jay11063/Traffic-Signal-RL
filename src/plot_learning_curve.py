@@ -7,30 +7,41 @@ import matplotlib.pyplot as plt
 def main(
     results_dir="results",
     output_name="learning_curve_three_seeds.png",
+    history_dir=None,
 ):
     results_dir = Path(results_dir)
     conditions = ("normal", "disrupted")
     fig, axes = plt.subplots(1, 2, figsize=(11, 4.5), sharey=True)
 
-    for agent_seed in (0, 1, 2):
-        csv_path = results_dir / f"learning_curve_seed_{agent_seed}.csv"
-        series = {condition: [] for condition in conditions}
+    sources = [(results_dir, "", "-")]
+    if history_dir is not None:
+        sources = [
+            (results_dir, "Current", "-"),
+            (Path(history_dir), "History", "--"),
+        ]
 
-        with csv_path.open("r", newline="", encoding="utf-8") as file:
-            for row in csv.DictReader(file):
-                episode = int(row["episode"])
-                wait = float(row["mean_wait_s"])
-                series[row["condition"]].append((episode, wait))
+    for directory, variant, line_style in sources:
+        for seed in (0, 1, 2):
+            path = directory / f"learning_curve_seed_{seed}.csv"
+            series = {condition: [] for condition in conditions}
 
-        for ax, condition in zip(axes, conditions):
-            episodes, waits = zip(*sorted(series[condition]))
-            ax.plot(
-                episodes,
-                waits,
-                marker="o",
-                markersize=3,
-                label=f"Agent seed {agent_seed}",
-            )
+            with path.open(newline="", encoding="utf-8") as file:
+                for row in csv.DictReader(file):
+                    episode = int(row["episode"])
+                    wait = float(row["mean_wait_s"])
+                    series[row["condition"]].append((episode, wait))
+
+            label = f"{variant} · seed {seed}" if variant else f"Agent seed {seed}"
+            for ax, condition in zip(axes, conditions):
+                episodes, waits = zip(*sorted(series[condition]))
+                ax.plot(
+                    episodes, waits,
+                    color=f"C{seed}",
+                    linestyle=line_style,
+                    marker="o",
+                    markersize=3,
+                    label=label,
+                )
 
     for ax, condition in zip(axes, conditions):
         ax.set_title(condition.capitalize())
@@ -39,7 +50,12 @@ def main(
 
     axes[0].set_ylabel("Mean validation wait (s)")
     axes[1].legend()
-    fig.suptitle("Q-learning validation curves across agent seeds")
+    title = (
+        "Current-observation and history-augmented Q-learning"
+        if history_dir is not None
+        else "Q-learning validation curves across agent seeds"
+    )
+    fig.suptitle(title)
     fig.tight_layout()
     fig.savefig(results_dir / output_name, dpi=150)
     plt.close(fig)
