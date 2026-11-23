@@ -17,15 +17,16 @@ Implemented:
 - Reproducible Poisson arrival scenarios and temporary capacity disruptions.
 - Fixed-time and rule-based controllers.
 - Waiting-time, queue-length, throughput, and unfinished-vehicle metrics.
-- Tabular Q-learning using the current observation, with JSON Q-table export
-  and greedy evaluation from a saved table.
+- Current-observation and history-augmented tabular Q-learning with JSON
+  Q-table export and greedy evaluation from saved tables.
 
 Normal-traffic fixed-time and rule-threshold tuning have been completed on
 validation seeds 100-109, along with normal/disruption saturation measurements.
-Three Q-learning runs completed 2,000 episodes each using agent seeds 0, 1,
-and 2. Each run has a saved Q-table and validation learning curve.
-Planned work includes a history-augmented Q-learning controller and
-graphical visualization of the intersection.
+Both Q-learning variants have completed three 2,000-episode training runs
+and matched validation at K = 7. Current-observation tables and curves
+are stored in `results/`. History-augmented results are in `results/history/`.
+
+Graphical visualization of the intersection is planned.
 
 ## Setup
 
@@ -431,35 +432,71 @@ python -m src.train
 python -m src.test
 ```
 
-Training runs use agent seeds 0, 1, and 2. Each run trains for 2,000
-episodes and saves its Q-table and validation curve in `results/`.
+Each variant trains for 2,000 episodes per agent seed (0, 1, and 2).
+Current-observation Q-tables and validation curves are saved in `results/`.
+History-augmented Q-tables and validation curves are saved in `results/history/`.
 Greedy validation runs before training and every 100 episodes on the same
 normal and disrupted scenario pairs from seeds 100–109. Run
 `python -m src.plot_learning_curve` to compare the three runs in one figure.
 
-I compared learning rates 0.10 and 0.05 using validation only. With the
+I compared learning rates 0.10 and 0.05 for current-observation Q-learning using validation only. With the
 same epsilon schedule (0.20 to 0.02), 0.05 reduced fluctuations and
 average wait across late checkpoints. I retained 0.10 because its final
 2,000-episode policies had lower mean waits across the three agent seeds
 in both normal and disrupted validation scenarios.
 
-The table below reports the final greedy policies after 2,000 training
-episodes. Each value is the average of episode mean waits over validation
-scenario seeds 100-109. Normal and disrupted scenario pairs share arrivals.
+### Matched validation at K = 7
 
-| Controller | Normal mean wait (s) | Disrupted mean wait (s) |
-| --- | ---: | ---: |
-| FixedTime (45, 10) | 13.75 | 32.76 |
-| RuleBased (threshold 5) | 12.84 | 31.06 |
-| Q-learning (agent seed 0) | 14.69 | 33.78 |
-| Q-learning (agent seed 1) | 13.94 | 32.84 |
-| Q-learning (agent seed 2) | 12.96 | 32.66 |
-| Q-learning (mean across three agent seeds) | 13.86 | 33.09 |
+All four controllers used the same ten validation scenario seeds (100–109).
+For each seed the normal and disrupted scenarios shared identical arrivals.
+Each table entry is the average of ten episode mean waits in seconds.
+All vehicles departed before the drain limit in every validation run.
 
-The mean across the three Q-learning runs was slightly higher than both
-baselines under both conditions. Agent seed 2 achieved lower mean waits
-than FixedTime under both conditions. RuleBased achieved the lowest mean
-wait in both conditions.
+Both Q-learning variants used their saved episode-2,000 Q-tables with
+epsilon set to zero. The agent seed identifies the training run.
+All six policies used evaluation seed 0 for greedy action ties.
+
+| Controller | Training agent seed | Normal mean wait (s) | Disrupted mean wait (s) |
+| --- | --- | ---: | ---: |
+| FixedTime (45, 10) | — | 13.75 | 32.76 |
+| RuleBased (threshold 5) | — | **12.84** | **31.06** |
+| Current-observation Q-learning | 0 | 14.69 | 33.78 |
+| Current-observation Q-learning | 1 | 13.94 | 32.84 |
+| Current-observation Q-learning | 2 | 12.96 | 32.66 |
+| **Current-observation mean** | **0–2** | **13.86** | **33.09** |
+| History-augmented Q-learning | 0 | 16.37 | 41.82 |
+| History-augmented Q-learning | 1 | 15.88 | 39.89 |
+| History-augmented Q-learning | 2 | 14.91 | 37.75 |
+| **History-augmented mean** | **0–2** | **15.72** | **39.82** |
+
+RuleBased achieved the lowest mean wait in both validation conditions.
+At the final checkpoint, adding departure history increased mean wait
+for all three training seeds. Averaged across seeds, the increase was
+1.86 s under normal demand and 6.73 s under disruption.
+
+
+### Frozen settings for held-out evaluation at K = 7
+
+After matched validation, I froze the following settings before evaluating
+held-out scenario seeds 3000–3019. Both Q-learning variants use the final
+checkpoint and the same training budget.
+
+| Setting | Frozen value |
+| --- | --- |
+| FixedTime green targets | NS 45 s, EW 10 s |
+| RuleBased switch threshold | 5 vehicles |
+| Q-learning rate and discount | Alpha 0.10, gamma 0.95 |
+| Training exploration | Epsilon decreases linearly from 0.20 to 0.02 |
+| Training budget | 2,000 episodes per run for agent seeds 0, 1, and 2 |
+| Evaluation policy | Greedy with epsilon 0 |
+| Reward scale | 200 vehicle-seconds |
+| Observed queue bins per approach | 0–1, 2–4, 5–7 vehicles |
+| Departure bins per axis | 0, 1–4, 5–10 vehicles per decision interval |
+| Elapsed green bins | 0–9, 10–19, 20+ seconds |
+| Phase | NS or EW |
+| History window | Six decision intervals |
+| History trend per axis | Compare the oldest and newest full-green counts in the window. A change of −2 or less is decreasing. A change of +2 or more is increasing. Otherwise the trend is maintaining. Fewer than two valid counts gives unavailable. |
+
 
 ## Evaluation metrics
 
@@ -509,9 +546,8 @@ finite road storage, or camera image processing. Results apply to the
 recurring weekday rush-hour demand profile used in the experiments.
 Generalization to other demand profiles remains untested.
 
-The current Q-learning controller uses the current observation. A
-history-augmented controller is planned. Training, validation, and test
-scenarios use separate seed ranges. Paired scenarios share arrival records.
+Training, validation, and test scenarios use separate seed ranges.
+Paired scenarios share arrival records.
 
 Queues have unlimited storage, so long queues do not cause upstream spillback
 or prevent new arrivals. Queue counts aggregate two lanes: 182 vehicles at 7 m
