@@ -13,18 +13,23 @@ EPSILON_START = 0.20
 EPSILON_END = 0.02
 
 
-def build_validation_scenarios(cfg):
+def build_scenario_pairs(cfg, seeds):
     scenarios = {"normal": [], "disrupted": []}
 
-    for seed in VALIDATION_SCENARIO_SEEDS:
+    for seed in seeds:
         normal = make_scenario(seed, cfg, base=0.15, peak=0.65)
         disrupted = sample_disruption(
             normal, np.random.default_rng([seed, 1])
         )
+        assert normal.arrivals is disrupted.arrivals, f"Arrival mismatch at seed {seed}"
         scenarios["normal"].append(normal)
         scenarios["disrupted"].append(disrupted)
 
     return scenarios
+
+
+def build_validation_scenarios(cfg):
+    return build_scenario_pairs(cfg, VALIDATION_SCENARIO_SEEDS)
 
 
 def evaluate_checkpoint(cfg, agent, scenarios, episode):
