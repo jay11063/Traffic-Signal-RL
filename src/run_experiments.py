@@ -34,7 +34,7 @@ def build_controllers(cfg):
 
 
 def main(split, k=7):
-    cfg = Config()
+    cfg = config_for_k(k)
     seeds = VALIDATION_SCENARIO_SEEDS if split == "validation" else TEST_SCENARIO_SEEDS
     scenarios = build_scenario_pairs(cfg, seeds)
     rows = []
@@ -63,10 +63,7 @@ def main(split, k=7):
                 assert row["total_arrived"] == row["total_passed"] + row["remaining"]
                 rows.append(row)
 
-    experiment_root = Path("results/experiments")
-    if k != 7:
-        experiment_root = experiment_root / f"k{k}"
-    output_dir = experiment_root / split
+    output_dir = Path("results/experiments") / f"k{k}" / split
     output_dir.mkdir(parents=True, exist_ok=True)
 
     with (output_dir / "episodes.json").open("w", encoding="utf-8") as file:
