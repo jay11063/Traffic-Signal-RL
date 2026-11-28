@@ -546,6 +546,16 @@ RuleBased had the lowest mean and p95 wait under both conditions.
 Under disruption, current-observation Q-learning reduced p95 wait from
 90.17 s with FixedTime to 76.46 s, while RuleBased achieved 70.00 s.
 
+#### Detector saturation on held-out scenarios
+
+An approach was saturated when its post-step queue observation reached K.
+Each rate includes the full episode through the drain period. For each
+policy, counts were pooled across the 20 test scenarios. The overall rate
+is the fraction of all approach–step pairs at the cap. RL results average
+the rates of the three training seeds.
+
+![Overall detector saturation by controller and condition at K=7](results/experiments/k7/test/saturation.png)
+
 ## Evaluation metrics
 
 An episode ends when arrivals have finished and all queues are empty, or when
