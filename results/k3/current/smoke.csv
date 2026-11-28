@@ -1,0 +1,5 @@
+episode,condition,mean_wait_s
+0,normal,195.3813434113896
+0,disrupted,235.37757065407368
+2,normal,32.338998843242905
+2,disrupted,66.26345162352605

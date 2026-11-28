@@ -16,11 +16,14 @@ def bin_index(value, edges):
     return 2
 
 
-def encode_state(obs):
+def encode_state(obs, queue_edges=(1, 4)):
     """
     return: (N queue, S queue, E queue, W queue, NS departures, EW departures, green time, phase)
     """
-    queues = tuple(bin_index(count, (1,4)) for count in obs["queue_observation"])
+    queues = tuple(
+        bin_index(count, queue_edges)
+        for count in obs["queue_observation"]
+    )
 
     departures = obs["throughput"]
     ns_departures = bin_index(departures[N] + departures[S], (0,4))
@@ -39,7 +42,8 @@ def encode_state(obs):
 class QLearning(Controller):
     name="q_learning"
 
-    def __init__(self, learning_rate=0.1, gamma=0.95, epsilon=0.2, seed=0):
+    def __init__(self, learning_rate=0.1, gamma=0.95, epsilon=0.2, seed=0, queue_edges=(1, 4)):
+        self.queue_edges = queue_edges
         self.learning_rate = learning_rate
         self.gamma = gamma
         self.epsilon = epsilon
@@ -55,7 +59,7 @@ class QLearning(Controller):
         if self.rng.random() < self.epsilon:
             return int(self.rng.choice(legal_actions))
 
-        state = encode_state(obs)
+        state = encode_state(obs, self.queue_edges)
         q_value = self.q_table.get(state, (0.0,0.0))
 
         best_value = max(q_value[action] for action in legal_actions)
@@ -65,12 +69,12 @@ class QLearning(Controller):
         return int(self.rng.choice(best_action))
 
     def update(self, obs, action, reward, next_obs, done):
-        state = encode_state(obs)
+        state = encode_state(obs, self.queue_edges)
         q_value = self.q_table.setdefault(state, [0.0, 0.0])
 
         target = reward
         if not done:
-            next_state = encode_state(next_obs)
+            next_state = encode_state(next_obs, self.queue_edges)
             next_values = self.q_table.get(next_state, (0.0,0.0))
             best_next_value = max(
                 next_values[next_action] 
@@ -84,7 +88,7 @@ class QLearning(Controller):
 
 class HistoryQLearning(QLearning):
     def __init__(self, cfg, **kwargs):
-        super().__init__(**kwargs)
+        super().__init__(queue_edges=cfg.queue_edges(), **kwargs)
         self.decision_interval = cfg.decision_interval
         self.history = deque(maxlen=cfg.history_length)
         self.previous_obs = None

@@ -10,6 +10,8 @@ ACTION_HOLD, ACTION_SWITCH = 0,1
 TRAIN_SCENARIO_SEEDS = range(1000, 3000)
 VALIDATION_SCENARIO_SEEDS = range(100, 110)
 TEST_SCENARIO_SEEDS = range(3000, 3020)
+DETECTION_RANGE_BY_K = {3: 25, 7: 50, 14: 100}
+QUEUE_EDGES_BY_K = {3: (0, 2), 7: (1, 4), 14: (1, 4)}
 
 @dataclass(frozen=True)
 class Config:
@@ -31,5 +33,11 @@ class Config:
     def max_observable(self):
         return int(self.detection_range_m // self.vehicle_occupancy_m)
 
+    def queue_edges(self):
+        return QUEUE_EDGES_BY_K[self.max_observable()]
+
     def nominal_capacity(self):
         return self.lanes_per_approach * self.saturation_flow_per_lane
+
+def config_for_k(k):
+    return Config(detection_range_m=DETECTION_RANGE_BY_K[k])

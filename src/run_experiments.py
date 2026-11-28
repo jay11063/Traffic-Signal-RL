@@ -4,11 +4,11 @@ import json
 from pathlib import Path
 from statistics import mean
 
-from .config import Config, DIRECTION, TEST_SCENARIO_SEEDS, VALIDATION_SCENARIO_SEEDS
+from .config import Config, config_for_k, DIRECTION, TEST_SCENARIO_SEEDS, VALIDATION_SCENARIO_SEEDS
 from .controllers import FixedTime, RuleBased, run_episode
 from .env import IntersectionEnv
 from .q_learning import HistoryQLearning, QLearning, load_q_table
-from .train import build_scenario_pairs
+from .train import build_scenario_pairs, policy_folder
 
 
 def build_controllers(cfg):
@@ -19,13 +19,12 @@ def build_controllers(cfg):
         for training_seed in (0, 1, 2):
             if variant == "history":
                 agent = HistoryQLearning(cfg, epsilon=0.0, seed=0)
-                folder = Path("results/history")
                 state_length = 10
             else:
-                agent = QLearning(epsilon=0.0, seed=0)
-                folder = Path("results")
+                agent = QLearning(epsilon=0.0, seed=0, queue_edges=cfg.queue_edges())
                 state_length = 8
 
+            folder = policy_folder(cfg.max_observable(), variant == "history")
             path = folder / f"q_table_seed_{training_seed}.json"
             agent.q_table = load_q_table(path)
             if not agent.q_table or any(len(s) != state_length for s in agent.q_table):
@@ -34,7 +33,7 @@ def build_controllers(cfg):
             yield variant, training_seed, agent
 
 
-def main(split):
+def main(split, k=7):
     cfg = Config()
     seeds = VALIDATION_SCENARIO_SEEDS if split == "validation" else TEST_SCENARIO_SEEDS
     scenarios = build_scenario_pairs(cfg, seeds)
@@ -64,7 +63,10 @@ def main(split):
                 assert row["total_arrived"] == row["total_passed"] + row["remaining"]
                 rows.append(row)
 
-    output_dir = Path("results/experiments") / split
+    experiment_root = Path("results/experiments")
+    if k != 7:
+        experiment_root = experiment_root / f"k{k}"
+    output_dir = experiment_root / split
     output_dir.mkdir(parents=True, exist_ok=True)
 
     with (output_dir / "episodes.json").open("w", encoding="utf-8") as file:
@@ -96,4 +98,6 @@ def main(split):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("split", choices=("validation", "test"))
-    main(parser.parse_args().split)
+    parser.add_argument("--k", type=int, choices=(3, 7, 14), default=7)
+    args = parser.parse_args()
+    main(args.split, k=args.k)

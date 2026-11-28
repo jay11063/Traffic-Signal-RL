@@ -341,6 +341,8 @@ decision interval are summed separately for NS and EW and binned as 0,
 1–4, or 5–10 vehicles per axis. Elapsed green uses bins of 0–9, 10–19,
 and 20–60 seconds. The state keeps the original phase value.
 
+We retained the K=7 queue edges (1, 4) and applied the same validation criterion at K=3 and K=14: maximizing the smallest bin share across baseline controllers, conditions, and approaches selected edges (0, 2) and (1, 4), respectively.
+
 Candidate boundaries were compared using the observations available to FixedTime (45, 10) and RuleBased (threshold 5) when choosing actions on paired normal and disrupted scenarios from validation seeds 100–109. For queue and departures, we chose the candidate whose smallest bin share across all controller, scenario and direction groups was largest: 13.6% for queue (vs. 10.4% and 6.7%) and 9.4% for departures (vs. 0.8% and 6.1%). Even so, 68–77% of EW departure observations fall in the zero bin under every candidate. A separate zero-departure bin captures intervals with no departures. The first green-time boundary matches the 10-second minimum green; the second, at 20 seconds, gave RuleBased the most even NS split. The 20–60 second bin is rarely reached on the EW axis: never under FixedTime and in 1–3% of RuleBased observations. These boundaries reflect the baseline controllers’ observations and may differ from the states the learning agent visits. The environment’s action mask determines which actions are legal.
 
 ![Heatmap comparing bin occupancy and normalized entropy across boundary candidates](validation/bin_balance_heatmap.png)

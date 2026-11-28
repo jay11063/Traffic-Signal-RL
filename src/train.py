@@ -2,8 +2,9 @@ import numpy as np
 import csv
 from pathlib import Path
 from statistics import mean
+import argparse
 
-from .config import Config, TRAIN_SCENARIO_SEEDS, VALIDATION_SCENARIO_SEEDS
+from .config import config_for_k, TRAIN_SCENARIO_SEEDS, VALIDATION_SCENARIO_SEEDS
 from .controllers import run_episode
 from .env import IntersectionEnv
 from .q_learning import QLearning, HistoryQLearning, save_q_table, train_episode
@@ -36,7 +37,7 @@ def evaluate_checkpoint(cfg, agent, scenarios, episode):
     if isinstance(agent, HistoryQLearning):
         evaluator = HistoryQLearning(cfg, epsilon=0.0, seed=0)
     else:
-        evaluator = QLearning(epsilon=0.0, seed=0)
+        evaluator = QLearning(epsilon=0.0, seed=0, queue_edges=cfg.queue_edges())
 
     evaluator.q_table = agent.q_table
 
@@ -59,8 +60,9 @@ def main(
     agent_seed=0,
     learning_rate=0.10,
     use_history=False,
+    k=7,
 ):
-    cfg = Config()
+    cfg = config_for_k(k)
     env = IntersectionEnv(cfg)
     agent_options = dict(
         learning_rate=learning_rate,
@@ -71,7 +73,7 @@ def main(
     if use_history:
         agent = HistoryQLearning(cfg, **agent_options)
     else:
-        agent = QLearning(**agent_options)
+        agent = QLearning(queue_edges=cfg.queue_edges(), **agent_options)
 
     all_seeds = TRAIN_SCENARIO_SEEDS
     seeds = all_seeds if episode_limit is None else all_seeds[:episode_limit]
@@ -117,8 +119,16 @@ def main(
     return agent
 
 
-def run_training_seeds(learning_rate=0.10, output_dir="results", use_history=False):
-    output_dir = Path(output_dir)
+def policy_folder(k, use_history):
+    if k == 7:
+        return Path("results/history") if use_history else Path("results")
+
+    variant = "history" if use_history else "current"
+    return Path("results") / f"k{k}" / variant
+
+
+def run_training_seeds(learning_rate=0.10, output_dir=None, use_history=False, k=7):
+    output_dir = Path(output_dir) if output_dir is not None else policy_folder(k, use_history)
 
     for agent_seed in (0, 1, 2):
         print(f"\nTraining agent seed {agent_seed}, learning rate {learning_rate}")
@@ -128,6 +138,7 @@ def run_training_seeds(learning_rate=0.10, output_dir="results", use_history=Fal
             learning_rate=learning_rate,
             curve_path=output_dir / f"learning_curve_seed_{agent_seed}.csv",
             use_history=use_history,
+            k=k,
         )
 
         table_path = output_dir / f"q_table_seed_{agent_seed}.json"
@@ -136,4 +147,9 @@ def run_training_seeds(learning_rate=0.10, output_dir="results", use_history=Fal
 
 
 if __name__ == "__main__":
-    run_training_seeds()
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--k", type=int, choices=(3, 7, 14), default=7)
+    parser.add_argument("--history", action="store_true")
+    args = parser.parse_args()
+
+    run_training_seeds(k=args.k, use_history=args.history)
