@@ -497,6 +497,20 @@ checkpoint and the same training budget.
 | History window | Six decision intervals |
 | History trend per axis | Compare the oldest and newest full-green counts in the window. A change of −2 or less is decreasing. A change of +2 or more is increasing. Otherwise the trend is maintaining. Fewer than two valid counts gives unavailable. |
 
+### Held-out test at K = 7
+
+All controllers were evaluated on 20 paired test scenarios (seeds 3000–3019).
+Each normal/disrupted pair shared the same arrivals. Each seed row averages
+20 episodes. P95 wait is the average of the episode-level 95th percentiles.
+The four queue columns report the average episode maximum in vehicles for
+each approach. For Q-learning, SD is the sample standard deviation across
+the three training-seed means.
+
+To regenerate the tables, run `python -m src.summarize_test`.
+
+RuleBased had the lowest mean and p95 wait under both conditions.
+Under disruption, current-observation Q-learning reduced p95 wait from
+90.17 s with FixedTime to 76.46 s, while RuleBased achieved 70.00 s.
 
 ## Evaluation metrics
 
