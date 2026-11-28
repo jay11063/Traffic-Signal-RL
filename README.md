@@ -508,6 +508,38 @@ the three training-seed means.
 
 To regenerate the tables, run `python -m src.summarize_test`.
 
+#### Normal
+
+| Controller | Agent seed | Mean wait (s) | P95 wait (s) | Max N | Max S | Max E | Max W |
+| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| FixedTime (45, 10) | — | 13.81 | 47.27 | 21.60 | 24.70 | 15.00 | 15.70 |
+| RuleBased (5) | — | 12.70 | 31.86 | 23.65 | 27.10 | 11.45 | 12.05 |
+| Current Q-learning | 0 | 14.05 | 42.29 | 23.85 | 30.30 | 14.30 | 15.30 |
+| Current Q-learning | 1 | 13.54 | 44.17 | 23.15 | 29.85 | 15.20 | 15.55 |
+| Current Q-learning | 2 | 13.06 | 40.57 | 23.75 | 28.65 | 15.40 | 14.75 |
+| **Current Q-learning** | **Mean ± SD** | 13.55 ± 0.50 | 42.34 ± 1.80 | 23.58 ± 0.38 | 29.60 ± 0.85 | 14.97 ± 0.59 | 15.20 ± 0.41 |
+| History Q-learning | 0 | 16.01 | 44.40 | 28.90 | 35.10 | 13.55 | 15.25 |
+| History Q-learning | 1 | 15.60 | 43.71 | 28.70 | 34.85 | 14.15 | 13.70 |
+| History Q-learning | 2 | 14.66 | 43.49 | 24.75 | 33.15 | 14.95 | 15.40 |
+| **History Q-learning** | **Mean ± SD** | 15.42 ± 0.69 | 43.87 ± 0.47 | 27.45 ± 2.34 | 34.37 ± 1.06 | 14.22 ± 0.70 | 14.78 ± 0.94 |
+
+#### Disrupted
+
+| Controller | Agent seed | Mean wait (s) | P95 wait (s) | Max N | Max S | Max E | Max W |
+| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| FixedTime (45, 10) | — | 22.75 | 90.17 | 31.15 | 37.15 | 19.80 | 20.75 |
+| RuleBased (5) | — | 21.24 | 70.00 | 34.15 | 42.20 | 14.50 | 16.50 |
+| Current Q-learning | 0 | 22.98 | 75.29 | 37.55 | 48.15 | 14.35 | 18.05 |
+| Current Q-learning | 1 | 21.51 | 72.71 | 35.60 | 43.80 | 16.50 | 18.45 |
+| Current Q-learning | 2 | 21.85 | 81.37 | 35.35 | 41.50 | 15.70 | 20.25 |
+| **Current Q-learning** | **Mean ± SD** | 22.11 ± 0.77 | 76.46 ± 4.44 | 36.17 ± 1.20 | 44.48 ± 3.38 | 15.52 ± 1.09 | 18.92 ± 1.17 |
+| History Q-learning | 0 | 27.37 | 85.40 | 45.95 | 53.20 | 15.90 | 19.65 |
+| History Q-learning | 1 | 31.88 | 96.12 | 53.70 | 62.00 | 13.75 | 14.90 |
+| History Q-learning | 2 | 24.91 | 79.32 | 43.75 | 52.60 | 16.85 | 17.15 |
+| **History Q-learning** | **Mean ± SD** | 28.05 ± 3.53 | 86.95 ± 8.50 | 47.80 ± 5.23 | 55.93 ± 5.26 | 15.50 ± 1.59 | 17.23 ± 2.38 |
+
+Waiting statistics cover completed vehicles. Across 320 runs, 0 runs had unfinished vehicles (0 vehicles remaining in total).
+
 RuleBased had the lowest mean and p95 wait under both conditions.
 Under disruption, current-observation Q-learning reduced p95 wait from
 90.17 s with FixedTime to 76.46 s, while RuleBased achieved 70.00 s.
